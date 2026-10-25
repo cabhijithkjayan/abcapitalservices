@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AB Capital Dashboard</title>
+  <meta name="description" content="CEO dashboard for AB Capital Services: sales, operations, compliance, finance and team in one view.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">AB</span>
+      <div>
+        <h1>AB Capital Services</h1>
+        <p class="brand-sub">CEO Dashboard</p>
+      </div>
+    </div>
+    <div class="actions">
+      <span id="source-badge" class="badge" title="Where the numbers come from"></span>
+      <label class="btn" for="file-input">Load Excel</label>
+      <input id="file-input" type="file" accept=".xlsx,.xls,.csv" hidden>
+      <button id="btn-template" class="btn" type="button">Download template</button>
+      <button id="btn-reset" class="btn btn-ghost" type="button" title="Forget the uploaded file and go back to the default data">Reset</button>
+      <button id="btn-theme" class="btn btn-ghost" type="button" aria-label="Toggle dark mode">Theme</button>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Dashboard pages">
+    <a href="#overview" data-page="overview">Overview</a>
+    <a href="#sales" data-page="sales">Sales</a>
+    <a href="#operations" data-page="operations">Operations</a>
+    <a href="#compliance" data-page="compliance">Compliance</a>
+    <a href="#finance" data-page="finance">Finance</a>
+    <a href="#team" data-page="team">Team</a>
+  </nav>
+
+  <div id="notice" class="notice" hidden></div>
+
+  <main id="page" class="page" aria-live="polite"></main>
+
+  <footer class="footer">
+    <span id="asof"></span>
+    <span>Data stays in your browser unless you host a data file. See README for setup.</span>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

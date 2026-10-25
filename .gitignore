@@ -1,0 +1,9 @@
+# This repo is public. Never commit real company data.
+*.xlsx
+*.xls
+*.csv
+data/*
+!data/README.md
+.claude/
+.DS_Store
+Thumbs.db
