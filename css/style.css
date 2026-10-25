@@ -162,6 +162,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   border: 1px solid var(--side-line); border-radius: 6px;
   background: transparent; color: var(--side-text); font: inherit; font-size: 12px; cursor: pointer;
 }
+a.side-btn { text-decoration: none; }
 .side-btn:hover { background: var(--side-hover); }
 
 /* Top bar inside main column */

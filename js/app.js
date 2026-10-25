@@ -1,6 +1,8 @@
 // CEO dashboard: loading, pages, charts and tables.
 
 const TODAY = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })();
+// Hosted data files, read only on private hosting (never on public GitHub Pages)
+const LIVE_SQL = 'data/abcapital.sql';
 const LIVE_FILE = 'data/abcapital.xlsx';
 
 const state = { data: null, source: { kind: 'sample', label: 'Sample data' }, charts: [], opsDept: 'All' };
@@ -557,7 +559,7 @@ function setData(data, source, warnings = []) {
   badge.dataset.kind = source.kind;
   const notice = $('#notice');
   const msgs = [...warnings];
-  if (source.kind === 'sample') msgs.unshift('You are looking at fictional sample data. Click “Template” in the sidebar, fill it with your real data, then “Load Excel”.');
+  if (source.kind === 'sample') msgs.unshift('You are looking at fictional sample data. Click “Load data” in the sidebar and pick your .sql file (or Excel workbook). “SQL sample” downloads the file format.');
   notice.hidden = !msgs.length;
   notice.textContent = msgs.join(' ');
   $('#asof').textContent = `Today: ${fmtDate(TODAY)}`;
@@ -688,16 +690,19 @@ function render() {
 async function init() {
   // 1. A hosted data file (private hosting only, see README) wins.
   //    GitHub Pages is public, so a data file must never be there; skip the lookup.
-  try {
-    if (location.hostname.endsWith('github.io')) throw new Error('public host');
-    const res = await fetch(LIVE_FILE, { cache: 'no-store' });
-    if (res.ok) {
-      const { data, warnings } = parseWorkbook(await res.arrayBuffer());
-      const mod = res.headers.get('last-modified');
-      setData(data, { kind: 'live', label: `Live file${mod ? ' · updated ' + fmtDate(new Date(mod)) : ''}` }, warnings);
-      return;
+  if (!location.hostname.endsWith('github.io')) {
+    for (const [file, parse] of [[LIVE_SQL, async (r) => parseSql(await r.text())], [LIVE_FILE, async (r) => parseWorkbook(await r.arrayBuffer())]]) {
+      try {
+        const res = await fetch(file, { cache: 'no-store' });
+        if (!res.ok) continue;
+        showNotice('Loading live data…');
+        const { data, warnings } = await parse(res);
+        const mod = res.headers.get('last-modified');
+        setData(data, { kind: 'live', label: `Live ${file.split('.').pop().toUpperCase()}${mod ? ' · updated ' + fmtDate(new Date(mod)) : ''}` }, warnings);
+        return;
+      } catch (e) { console.error(e); /* try the next source */ }
     }
-  } catch (e) { /* no hosted file */ }
+  }
   // 2. A workbook this browser loaded earlier.
   const cached = loadCache();
   if (cached) {
@@ -718,7 +723,9 @@ $('#file-input').addEventListener('change', async (e) => {
   const f = e.target.files[0];
   if (!f) return;
   try {
-    const { data, warnings } = parseWorkbook(await f.arrayBuffer());
+    const isSql = /.sql$/i.test(f.name);
+    if (isSql) showNotice(`Reading ${f.name}… (first time downloads the in-browser database engine, about 3 MB)`);
+    const { data, warnings } = isSql ? await parseSql(await f.text()) : parseWorkbook(await f.arrayBuffer());
     const at = Date.now();
     saveCache({ name: f.name, at, data });
     setData(data, { kind: 'upload', label: `${f.name} · loaded ${fmtDate(new Date(at))}` }, warnings);
@@ -728,7 +735,7 @@ $('#file-input').addEventListener('change', async (e) => {
   }
   e.target.value = '';
 });
-$('#btn-template').addEventListener('click', () => exportWorkbook(state.source.kind === 'sample' ? state.data : makeSampleData(), 'AB_Capital_Dashboard_Template.xlsx'));
+function showNotice(msg) { $('#notice').hidden = false; $('#notice').textContent = msg; }
 $('#btn-reset').addEventListener('click', () => { clearCache(); init(); });
 
 // Theme: OS setting by default, toggle overrides and is remembered on this device.

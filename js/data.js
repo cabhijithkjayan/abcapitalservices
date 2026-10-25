@@ -91,6 +91,73 @@ function exportWorkbook(data, filename) {
   XLSX.writeFile(wb, filename);
 }
 
+// ---------------------------------------------------------------------------
+// SQL source: run db/schema.sql plus a data file in an in-browser Postgres (PGlite),
+// then read each dashboard sheet with one query. Nothing leaves the browser.
+// ---------------------------------------------------------------------------
+const PGLITE_URL = 'https://cdn.jsdelivr.net/npm/@electric-sql/pglite@0.2.17/dist/index.js';
+const SCHEMA_FILE = 'db/schema.sql';
+
+const SQL_QUERIES = {
+  Leads: `select l.ref as "LeadID", l.created_on as "Date", l.source as "Source", c.name as "Campaign",
+            l.client_name as "ClientName", s.name as "Service", l.value_aed as "ValueAED", l.status as "Status", st.full_name as "Owner"
+          from leads l left join campaigns c on c.id = l.campaign_id left join services s on s.id = l.service_id left join staff st on st.id = l.owner_id`,
+  Campaigns: `select cs.month as "Month", c.name as "Campaign", c.platform as "Platform", cs.spend_aed as "SpendAED",
+                cs.impressions as "Impressions", cs.clicks as "Clicks"
+              from campaign_spend cs join campaigns c on c.id = cs.campaign_id`,
+  Clients: `select ref as "ClientID", name as "Name", company as "Company", jurisdiction as "Jurisdiction",
+              licence_no as "LicenceNo", trn as "TRN", start_date as "StartDate" from clients`,
+  Cases: `select ref as "CaseID", client_ref as "ClientID", department as "Department", service as "Service", stage as "Stage",
+            assignee as "Assignee", opened_on as "OpenedOn", due_on as "DueDate", closed_on as "ClosedOn", fee_aed as "FeeAED", status as "Status"
+          from v_cases where status <> 'Cancelled'`,
+  Expiries: `select cl.ref as "ClientID", e.type as "Type", e.number as "Number", e.expiry_date as "ExpiryDate"
+             from expiries e join clients cl on cl.id = e.client_id where not e.renewed`,
+  Banking: `select cl.ref as "ClientID", b.bank as "Bank", b.applied_on as "AppliedOn", b.status as "Status", b.rejection_reason as "RejectionReason"
+            from bank_applications b join clients cl on cl.id = b.client_id where b.status <> 'Withdrawn'`,
+  TaxCalendar: `select cl.ref as "ClientID", t.type as "Type", t.period as "Period", t.due_on as "DueDate",
+                  case when t.filed_on is null then 'N' else 'Y' end as "Filed"
+                from tax_filings t join clients cl on cl.id = t.client_id`,
+  Team: `select s.full_name as "Staff", d.name as "Department", s.job_title as "Role",
+           case when exists (select 1 from staff_leave lv where lv.staff_id = s.id and current_date between lv.starts_on and lv.ends_on) then 'Y' else 'N' end as "OnLeave"
+         from staff s left join departments d on d.id = s.department_id where s.active`,
+  Finance: `select month as "Month", revenue_aed as "RevenueAED", expenses_aed as "ExpensesAED",
+              collected_aed as "CollectedAED", vat_payable_aed as "VATPayableAED" from finance_monthly order by month`,
+  Receivables: `select client_name as "ClientName", invoice_no as "InvoiceNo", invoice_date as "InvoiceDate",
+                  due_on as "DueDate", amount_aed as "AmountAED" from receivables where paid_on is null`,
+  BankBalances: `select distinct on (bank, account) bank as "Bank", account as "Account", balance_aed as "BalanceAED", as_of as "AsOf"
+                 from bank_balances order by bank, account, as_of desc`,
+};
+
+let pgliteModule = null;
+async function parseSql(dataText) {
+  if (!pgliteModule) pgliteModule = await import(PGLITE_URL);
+  const db = new pgliteModule.PGlite();
+  try {
+    // A full dump (with CREATE TABLE) brings its own schema; a data-only file needs ours first.
+    if (!/create\s+table/i.test(dataText)) {
+      const res = await fetch(SCHEMA_FILE, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`Could not load ${SCHEMA_FILE}`);
+      await db.exec(await res.text());
+    }
+    await db.exec(dataText);
+    const data = {};
+    const warnings = [];
+    for (const sheet of Object.keys(SCHEMA)) {
+      try {
+        // Postgres date (type 1082) as a local calendar date, not UTC midnight
+        const rows = (await db.query(SQL_QUERIES[sheet], [], { parsers: { 1082: (v) => new Date(`${v}T00:00:00`) } })).rows;
+        data[sheet] = normalizeRows(sheet, rows);
+      } catch (err) {
+        data[sheet] = [];
+        warnings.push(`${sheet}: ${err.message}`);
+      }
+    }
+    return { data, warnings: warnings.length ? [`Some data could not be read (shown empty): ${warnings.join('; ')}`] : [] };
+  } finally {
+    await db.close();
+  }
+}
+
 // Cache an upload in this browser only. Storage can be blocked, so every access is guarded.
 const CACHE_KEY = 'abc-dashboard-upload';
 function saveCache(payload) {
@@ -289,5 +356,7 @@ function makeSampleData() {
     { Bank: 'Mashreq', Account: 'Client Funds – AED', BalanceAED: 254900, AsOf: today },
   ];
 
-  return { Leads, Campaigns, Clients, Cases, Expiries, Banking, TaxCalendar, Team, Finance, Receivables, BankBalances };
+  // _services is used only by tools/make-sample-sql.js to write db/sample-data.sql
+  const _services = Object.entries(services).flatMap(([Department, list]) => list.map(([Service, lo, hi]) => ({ Department, Service, Fee: Math.round((lo + hi) / 2 / 100) * 100 })));
+  return { Leads, Campaigns, Clients, Cases, Expiries, Banking, TaxCalendar, Team, Finance, Receivables, BankBalances, _services };
 }

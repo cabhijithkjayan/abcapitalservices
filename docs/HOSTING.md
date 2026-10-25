@@ -54,16 +54,15 @@ GitHub → repo → **Settings** → **General** → scroll to **Danger Zone** �
 5. Login method: **One-time PIN** (users receive a code by email; no passwords to manage).
 6. Save. Open the site in a private window and check that it asks for an email before showing anything.
 
-### 4. Add the live workbook
+### 4. Add the live data file
 
-The `.gitignore` blocks `.xlsx` files on purpose. Add the workbook through the GitHub website, which is not affected by `.gitignore`:
+The `.gitignore` blocks `.sql` and `.xlsx` files on purpose. Add the file through the GitHub website, which is not affected by `.gitignore`:
 
 1. GitHub → repo (now private) → open the `data` folder → **Add file** → **Upload files**.
-2. Upload the workbook named exactly **`abcapital.xlsx`** → **Commit changes**.
+2. Upload the SQL file named exactly **`abcapital.sql`** (or a workbook named `abcapital.xlsx`) → **Commit changes**.
 3. Cloudflare redeploys automatically in about a minute. The badge in the dashboard turns green and shows **Live file**.
 
-To update: upload the new `abcapital.xlsx` the same way (it replaces the old one). Daily routine:
-department sheets updated → accounts pastes Tally exports → workbook uploaded by 10 am.
+To update: upload the new `abcapital.sql` the same way (it replaces the old one).
 
 ### 5. Optional: your own address
 

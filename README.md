@@ -18,7 +18,22 @@ Every chart has a **Table** button that shows the same numbers as a table. Light
 
 ## How the data works
 
-All data lives in **one Excel workbook** with one sheet per area. Click **Download template** in the dashboard to get the workbook with the right sheet and column names (filled with fictional sample rows to show the format).
+### Main source: one SQL file
+
+All figures come from **one PostgreSQL data file** that fills the tables in `db/schema.sql`.
+
+- **Format:** `db/sample-data.sql` (fictional). Click **SQL sample** in the sidebar to download it. Keep the same tables and columns; replace the rows.
+- **Updating:** edit the rows (or export them from your Postgres database), save as `abcapital.sql`, then click **Load data** in the sidebar and pick the file. The dashboard runs it in an in-browser Postgres engine; the file is **not uploaded** anywhere.
+- **A full dump also works:** a `pg_dump` file that includes `CREATE TABLE` statements is used as-is, as long as its tables match `db/schema.sql`.
+- **Errors** (a typo, a missing reference) appear at the top of the page with the Postgres message; the previous data stays on screen.
+- **Private hosting:** put the file on the server as `data/abcapital.sql` and every logged-in user sees it automatically (see `docs/HOSTING.md`, Option B). Never on public GitHub Pages.
+- To regenerate the sample file after changing the sample data: `node tools/make-sample-sql.js`.
+
+> **Never commit a real `.sql` file.** `.gitignore` blocks every `.sql` file except `db/schema.sql` and `db/sample-data.sql`.
+
+### Alternative: Excel workbook
+
+All data lives in **one Excel workbook** with one sheet per area. The Excel workbook format is the same as the SQL tables. To get it with the right sheet and column names (filled with fictional sample rows to show the format).
 
 | Sheet | Updated by | Columns |
 |---|---|---|
@@ -57,8 +72,8 @@ Paste the exported rows into the matching sheet. Menu names vary slightly betwee
 
 ### Where the dashboard reads data from (in this order)
 
-1. `data/abcapital.xlsx` on the web server, if it exists. Use this only on private hosting.
-2. The last workbook loaded in this browser with **Load Excel**. It is kept in this browser only and never uploaded.
+1. `data/abcapital.sql`, then `data/abcapital.xlsx`, on the web server. Private hosting only; skipped on GitHub Pages.
+2. The last SQL file or workbook loaded in this browser with **Load data**. It is kept in this browser only and never uploaded.
 3. Fictional sample data, so the dashboard is never blank.
 
 ## Run it on your computer

@@ -7,7 +7,7 @@
   <meta name="description" content="CEO dashboard for AB Capital Services: sales, operations, compliance, finance and team in one view.">
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="assets/logo-mark.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="css/style.css?v=1792936160">
+  <link rel="stylesheet" href="css/style.css?v=1792937229">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 </head>
@@ -57,9 +57,9 @@
       <div class="side-foot">
         <span id="source-badge" class="badge" title="Where the numbers come from"></span>
         <div class="side-actions">
-          <label class="side-btn" for="file-input">Load Excel</label>
-          <input id="file-input" type="file" accept=".xlsx,.xls,.csv" hidden>
-          <button id="btn-template" class="side-btn" type="button">Template</button>
+          <label class="side-btn" for="file-input">Load data</label>
+          <input id="file-input" type="file" accept=".sql,.xlsx,.xls,.csv" hidden>
+          <a class="side-btn" href="db/sample-data.sql" download>SQL sample</a>
           <button id="btn-reset" class="side-btn" type="button" title="Forget the uploaded file and go back to the default data">Reset</button>
           <button id="btn-theme" class="side-btn" type="button" aria-label="Toggle dark mode">Theme</button>
         </div>
@@ -87,7 +87,7 @@
     </div>
   </div>
 
-  <script src="js/data.js?v=1792936160"></script>
-  <script src="js/app.js?v=1792936160"></script>
+  <script src="js/data.js?v=1792937229"></script>
+  <script src="js/app.js?v=1792937229"></script>
 </body>
 </html>

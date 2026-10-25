@@ -7,3 +7,7 @@ data/*
 .claude/
 .DS_Store
 Thumbs.db
+# Real SQL data files stay out of the repo; only the schema and the fictional sample are tracked.
+*.sql
+!db/schema.sql
+!db/sample-data.sql
