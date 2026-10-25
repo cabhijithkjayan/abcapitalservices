@@ -48,8 +48,10 @@ function delta(cur, prev) {
   return `<span class="${cls}">${p >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(p * 100))}%</span> vs last month`;
 }
 
+// span may carry an anchor id: "span-6#cp-tax"
 function card(span, title, sub, body) {
-  return `<section class="card ${span}"><div class="card-head"><div><h3>${esc(title)}</h3>${sub ? `<p>${esc(sub)}</p>` : ''}</div></div>${body}</section>`;
+  const [cls, id] = span.split("#");
+  return `<section class="card ${cls}"${id ? ` id="${id}"` : ""}><div class="card-head"><div><h3>${esc(title)}</h3>${sub ? `<p>${esc(sub)}</p>` : ''}</div></div>${body}</section>`;
 }
 function chartCard(span, id, title, sub, tall = false) {
   return `<section class="card ${span}">
@@ -190,7 +192,7 @@ PAGES.overview = () => {
     </div>
     <div class="grid">
       ${chartCard('span-7', 'ov-rev', 'Revenue and expenses', 'Monthly, from Tally')}
-      ${card('span-5', 'Needs attention', `${alerts.length} items, most urgent first`, alertHtml)}
+      ${card('span-5#attention', 'Needs attention', `${alerts.length} items, most urgent first`, alertHtml)}
       ${chartCard('span-12', 'ov-cases', 'Open cases by department', 'On time vs overdue')}
     </div>`;
 
@@ -310,7 +312,7 @@ PAGES.operations = () => {
         ? chartCard('span-6', 'op-dept', 'Average days to complete', 'By department, last 90 days')
         : chartCard('span-6', 'op-dept', 'Open cases by stage', state.opsDept)}
       ${chartCard('span-6', 'op-month', 'Opened vs completed', 'Cases per month')}
-      ${card('span-12', 'Open cases', 'Sorted by due date', table([
+      ${card('span-12#op-open', 'Open cases', 'Sorted by due date', table([
         { label: 'Case', value: (c) => c.CaseID },
         { label: 'Client', value: (c) => clientName(c.ClientID) },
         { label: 'Department', value: (c) => c.Department },
@@ -323,7 +325,9 @@ PAGES.operations = () => {
       ], openSorted, 'No open cases'))}
     </div>`;
 
-  $('#ops-dept').addEventListener('change', (e) => { state.opsDept = e.target.value; render(); });
+  $('#ops-dept').addEventListener('change', (e) => {
+    location.hash = e.target.value === 'All' ? 'operations' : `operations?dept=${encodeURIComponent(e.target.value)}`;
+  });
 
   if (state.opsDept === 'All') {
     chart('op-dept', { labels: depts, series: [{ label: 'Avg days', data: depts.map((x) => +avgDays(done90.filter((c) => c.Department === x)).toFixed(1)) }] });
@@ -367,13 +371,13 @@ PAGES.compliance = () => {
     <div class="grid">
       ${chartCard('span-6', 'cp-exp', 'Expiries in the next 90 days', 'By document type')}
       ${chartCard('span-6', 'cp-bank', 'Bank applications by bank', 'All applications on record')}
-      ${card('span-6', 'Expired and expiring within 60 days', `${upcoming.length} documents`, table([
+      ${card('span-6#cp-expiring', 'Expired and expiring within 60 days', `${upcoming.length} documents`, table([
         { label: 'Client', value: (e) => clientName(e.ClientID) },
         { label: 'Type', value: (e) => e.Type },
         { label: 'Expiry', value: (e) => fmtDate(e.ExpiryDate) },
         { label: 'Status', html: (e) => urgency(e.n) },
       ], upcoming, 'Nothing expiring soon'))}
-      ${card('span-6', 'Unfiled tax returns due within 30 days', `${tax.length} returns`, table([
+      ${card('span-6#cp-tax', 'Unfiled tax returns due within 30 days', `${tax.length} returns`, table([
         { label: 'Client', value: (x) => clientName(x.ClientID) },
         { label: 'Return', value: (x) => x.Type },
         { label: 'Period', value: (x) => x.Period },
@@ -421,7 +425,7 @@ PAGES.finance = () => {
     <div class="grid">
       ${chartCard('span-8', 'fn-pl', 'Revenue, expenses and profit', 'Monthly')}
       ${chartCard('span-4', 'fn-aging', 'Receivables aging', 'Amount by days past due')}
-      ${card('span-7', 'Overdue invoices', 'Largest first', table([
+      ${card('span-7#fn-overdue', 'Overdue invoices', 'Largest first', table([
         { label: 'Client', value: (r) => r.ClientName },
         { label: 'Invoice', value: (r) => r.InvoiceNo },
         { label: 'Due', value: (r) => fmtDate(r.DueDate) },
@@ -493,24 +497,124 @@ function setData(data, source, warnings = []) {
   badge.dataset.kind = source.kind;
   const notice = $('#notice');
   const msgs = [...warnings];
-  if (source.kind === 'sample') msgs.unshift('You are looking at fictional sample data. Click “Download template”, fill it with your real data, then “Load Excel”.');
+  if (source.kind === 'sample') msgs.unshift('You are looking at fictional sample data. Click “Template” in the sidebar, fill it with your real data, then “Load Excel”.');
   notice.hidden = !msgs.length;
   notice.textContent = msgs.join(' ');
-  $('#asof').textContent = `Today: ${fmtDate(TODAY)} · Source: ${source.label}`;
+  $('#asof').textContent = `Today: ${fmtDate(TODAY)}`;
+  buildSidebar();
   render();
 }
+
+// ---------- sidebar ----------
+const PAGE_TITLES = { overview: 'Overview', sales: 'Sales', operations: 'Operations', compliance: 'Compliance', finance: 'Finance', team: 'Team' };
+const slug = (s) => s.toLowerCase().replace(/&/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+function buildSidebar() {
+  const d = state.data;
+  const open = d.Cases.filter(isOpen);
+  // Department channels with their open-case count
+  $('#dept-links').innerHTML = deptList(d.Cases).map((dept) => {
+    const n = open.filter((c) => c.Department === dept).length;
+    return `<a href="#operations?dept=${encodeURIComponent(dept)}"><span class="hash" aria-hidden="true">#</span><span>${esc(slug(dept))}</span><b class="count muted" title="Open cases">${n || ''}</b></a>`;
+  }).join('');
+
+  // Counts: red = needs action, grey = informational
+  const overdueCases = open.filter((c) => c.DueDate && c.DueDate < TODAY).length;
+  const expired = d.Expiries.filter((e) => e.ExpiryDate && daysUntil(e.ExpiryDate) < 0).length;
+  const expiring = d.Expiries.filter((e) => e.ExpiryDate && daysUntil(e.ExpiryDate) <= 30).length;
+  const taxOverdue = d.TaxCalendar.filter((t) => !isYes(t.Filed) && t.DueDate && daysUntil(t.DueDate) < 0).length;
+  const taxDue = d.TaxCalendar.filter((t) => !isYes(t.Filed) && t.DueDate && daysUntil(t.DueDate) <= 14).length;
+  const overdueInvoices = d.Receivables.filter((r) => r.DueDate && daysAgo(r.DueDate) > 0).length;
+  const counts = {
+    attention: overdueCases + expired + taxOverdue,
+    newLeads: d.Leads.filter((l) => l.Status === 'New').length,
+    overdueCases,
+    compliance: expired + taxOverdue,
+    overdueInvoices,
+    onLeave: d.Team.filter((m) => isYes(m.OnLeave)).length,
+    expiring,
+    taxDue,
+  };
+  const tips = {
+    attention: 'Overdue cases, expired documents and overdue tax returns',
+    newLeads: 'New leads not yet contacted',
+    overdueCases: 'Overdue cases',
+    compliance: 'Expired documents and overdue tax returns',
+    overdueInvoices: 'Overdue invoices',
+    onLeave: 'Staff on leave',
+    expiring: 'Expired or expiring within 30 days',
+    taxDue: 'Unfiled returns due within 14 days',
+  };
+  document.querySelectorAll('[data-count]').forEach((b) => {
+    const n = counts[b.dataset.count];
+    b.textContent = n ? (n > 99 ? '99+' : n) : '';
+    b.title = tips[b.dataset.count] || '';
+  });
+}
+
+function parseHash() {
+  const [p, q] = (location.hash || '#overview').slice(1).split('?');
+  return { page: PAGES[p] ? p : 'overview', params: new URLSearchParams(q || '') };
+}
+
+function markActive(page) {
+  const hash = location.hash || '#overview';
+  const links = [...document.querySelectorAll('.side-nav a')];
+  const exact = links.find((a) => a.getAttribute('href') === hash);
+  links.forEach((a) => a.removeAttribute('aria-current'));
+  (exact || links.find((a) => a.dataset.page === page))?.setAttribute('aria-current', 'page');
+}
+
+function setSidebar(open) {
+  $('#sidebar').classList.toggle('open', open);
+  $('#scrim').hidden = !open;
+  $('#btn-menu').setAttribute('aria-expanded', String(open));
+}
+$('#btn-menu').addEventListener('click', () => setSidebar(true));
+$('#scrim').addEventListener('click', () => setSidebar(false));
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') setSidebar(false);
+  // Ctrl+K / Cmd+K focuses "Jump to", like Slack
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setSidebar(true); $('#jump').focus(); }
+});
+$('#side-nav').addEventListener('click', (e) => { if (e.target.closest('a')) setSidebar(false); });
+$('#jump').addEventListener('input', (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  document.querySelectorAll('.side-section').forEach((sec) => {
+    let any = false;
+    sec.querySelectorAll('a').forEach((a) => { const hit = !q || a.textContent.toLowerCase().includes(q); a.hidden = !hit; any = any || hit; });
+    sec.hidden = !any;
+  });
+});
+$('#jump').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  const first = [...document.querySelectorAll('.side-nav a')].find((a) => !a.hidden && !a.closest('[hidden]'));
+  if (first) { location.hash = first.getAttribute('href'); e.target.value = ''; e.target.dispatchEvent(new Event('input')); e.target.blur(); setSidebar(false); }
+});
 
 function render() {
   state.charts.forEach((c) => c.destroy());
   state.charts = [];
-  const page = (location.hash || '#overview').slice(1);
-  const name = PAGES[page] ? page : 'overview';
-  document.querySelectorAll('.tabs a').forEach((a) => { if (a.dataset.page === name) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  const { page, params } = parseHash();
+  if (page === 'operations') state.opsDept = params.get('dept') || 'All';
+  markActive(page);
+  $('#crumb-page').textContent = PAGE_TITLES[page];
+  $('#crumb-sub').textContent = page === 'operations' && state.opsDept !== 'All' ? `# ${slug(state.opsDept)}` : '';
+  document.title = `${PAGE_TITLES[page]} · AB Capital Dashboard`;
   if (typeof Chart === 'undefined' || typeof XLSX === 'undefined') {
     $('#notice').hidden = false;
     $('#notice').textContent = 'Chart or Excel library failed to load. Check the internet connection and refresh.';
   }
-  PAGES[name]();
+  PAGES[page]();
+  const focus = params.get('focus');
+  const target = focus && document.getElementById(focus);
+  if (target) {
+    target.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    target.classList.add('focus');
+    setTimeout(() => target.classList.remove('focus'), 1600);
+  } else {
+    window.scrollTo(0, 0);
+  }
 }
 
 async function init() {
