@@ -105,7 +105,7 @@ function loadCache() {
       });
     }
     return p;
-  } catch (e) { return null; }
+  } catch (e) { clearCache(); return null; }
 }
 function clearCache() {
   try { localStorage.removeItem(CACHE_KEY); } catch (e) { /* ignore */ }

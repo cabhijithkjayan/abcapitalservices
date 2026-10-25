@@ -605,7 +605,15 @@ function render() {
     $('#notice').hidden = false;
     $('#notice').textContent = 'Chart or Excel library failed to load. Check the internet connection and refresh.';
   }
-  PAGES[page]();
+  try {
+    PAGES[page]();
+  } catch (err) {
+    // Never leave a blank screen: say what failed and how to recover.
+    console.error(err);
+    $('#page').innerHTML = `<section class="card"><h3>This page could not be drawn</h3>
+      <p class="kpi-sub">${esc(err.message)}</p>
+      <p>If you loaded an Excel file, check its sheet and column names against the template, or click <b>Reset</b> in the sidebar to go back to sample data.</p></section>`;
+  }
   const focus = params.get('focus');
   const target = focus && document.getElementById(focus);
   if (target) {
@@ -619,7 +627,9 @@ function render() {
 
 async function init() {
   // 1. A hosted data file (private hosting only, see README) wins.
+  //    GitHub Pages is public, so a data file must never be there; skip the lookup.
   try {
+    if (location.hostname.endsWith('github.io')) throw new Error('public host');
     const res = await fetch(LIVE_FILE, { cache: 'no-store' });
     if (res.ok) {
       const { data, warnings } = parseWorkbook(await res.arrayBuffer());
@@ -630,7 +640,16 @@ async function init() {
   } catch (e) { /* no hosted file */ }
   // 2. A workbook this browser loaded earlier.
   const cached = loadCache();
-  if (cached) { setData(cached.data, { kind: 'upload', label: `${cached.name} · loaded ${fmtDate(new Date(cached.at))}` }); return; }
+  if (cached) {
+    try {
+      setData(cached.data, { kind: 'upload', label: `${cached.name} · loaded ${fmtDate(new Date(cached.at))}` });
+      return;
+    } catch (err) {
+      // A saved file that no longer loads must not block the dashboard.
+      console.error(err);
+      clearCache();
+    }
+  }
   // 3. Sample data.
   setData(makeSampleData(), { kind: 'sample', label: 'Sample data' });
 }
