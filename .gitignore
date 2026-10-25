@@ -11,3 +11,6 @@ Thumbs.db
 *.sql
 !db/schema.sql
 !db/sample-data.sql
+# The master workbook is your working copy (may hold real data); only the generated SQL is published.
+*.xlsm
+~$*

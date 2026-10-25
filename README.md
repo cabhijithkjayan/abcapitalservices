@@ -18,6 +18,17 @@ Every chart has a **Table** button that shows the same numbers as a table. Light
 
 ## How the data works
 
+### Easiest: the master Excel workbook
+
+`AB Capital Master Data.xlsm` in the project folder holds all dashboard figures, one sheet per area.
+
+1. Open it and click **Enable Content** (the macro is needed for the button).
+2. Change values only in the **light-yellow cells**. Headers, structure and the hidden lists are locked with the password `12345`.
+3. Go to the **Start** sheet and click **Generate SQL**. It checks the data (unknown client IDs, wrong dropdown values, bad dates or numbers) and, if all is fine, rewrites `db/sample-data.sql`. If something is wrong it lists the problems and writes nothing.
+4. Push `db/sample-data.sql` (commands below). The live site updates in about a minute.
+
+The workbook is ignored by Git, so keep a backup copy on the company OneDrive or Drive. To rebuild it from the built-in sample (replaces your edits): `powershell -ExecutionPolicy Bypass -File toolsuild-master-excel.ps1 -Force`.
+
 ### Main source: one SQL file
 
 **The live site shows `db/sample-data.sql`.** To change what the site shows, edit that file, then commit and push:
