@@ -8,7 +8,7 @@ It runs on the tools the firm already uses: **Excel sheets per department plus T
 | Page | What the CEO sees |
 |---|---|
 | **Overview** | Revenue, collections, receivables, cash, new leads, open/overdue cases, expiries, tax deadlines, and a "Needs attention" list ranked by urgency |
-| **Sales** | Leads by stage and source, conversion rate, pipeline value, wins per month, services and sales staff ranked by won value |
+| **Sales & Marketing** | Leads by stage and source, conversion rate, pipeline value, Meta and Google ad spend, leads from ads, cost per lead, cost per client won, return on ad spend, campaign table, services and sales staff ranked by won value |
 | **Operations** | Open and overdue cases, completion time by department, opened vs completed per month, full open-case list (filter by department) |
 | **Compliance** | Expired and expiring licences, visas and Emirates IDs; unfiled VAT and corporate tax returns; bank account applications and rejection reasons |
 | **Finance** | Revenue, expenses and profit by month, collection rate, receivables aging, overdue invoices, bank balances, VAT payable |
@@ -22,8 +22,9 @@ All data lives in **one Excel workbook** with one sheet per area. Click **Downlo
 
 | Sheet | Updated by | Columns |
 |---|---|---|
-| `Leads` | Sales | LeadID, Date, Source, ClientName, Service, ValueAED, Status (New / Contacted / Proposal / Won / Lost), Owner |
-| `Clients` | Sales / Admin | ClientID, Name, Company, Jurisdiction, LicenceNo, TRN, StartDate |
+| `Leads` | Sales & Marketing | LeadID, Date, Source (Website, WhatsApp, Meta Ads, Google Ads…), Campaign, ClientName, Service, ValueAED, Status (New / Contacted / Proposal / Won / Lost), Owner |
+| `Campaigns` | Marketing, from Meta Ads Manager / Google Ads | Month, Campaign, Platform (Meta / Google), SpendAED, Impressions, Clicks |
+| `Clients` | Sales & Marketing / Admin | ClientID, Name, Company, Jurisdiction, LicenceNo, TRN, StartDate |
 | `Cases` | All departments | CaseID, ClientID, Department, Service, Stage, Assignee, OpenedOn, DueDate, ClosedOn, FeeAED, Status (Open / On Hold / Completed) |
 | `Expiries` | PRO | ClientID, Type (Trade Licence, Investor Visa, Emirates ID…), Number, ExpiryDate |
 | `Banking` | Banking | ClientID, Bank, AppliedOn, Status (Submitted / Under Review / Approved / Rejected), RejectionReason |
@@ -37,6 +38,8 @@ Rules that keep the dashboard accurate:
 
 - Keep sheet names and column headers exactly as in the template. Extra columns are ignored.
 - `ClientID` is the link between sheets. Use the same ID everywhere.
+- For ad leads, write the campaign name in `Leads.Campaign` exactly as in the `Campaigns` sheet. That is how cost per lead and return on ad spend are calculated.
+- `Campaigns`: one row per campaign per month. In Meta Ads Manager or Google Ads, set the date range to one month, export the campaign report, and copy Amount spent (AED), Impressions and Clicks.
 - `Department` values: Company Formation, PRO & Visa, Banking, Accounting & Tax, Loans & Mortgage, Advisory.
 - Dates can be real Excel dates or `dd/mm/yyyy`.
 - Use dropdowns (Data → Data Validation) for Status, Stage and Department so spelling stays consistent.

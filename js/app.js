@@ -235,15 +235,67 @@ PAGES.sales = () => {
     return { o, n, w: w.length, v: sum(w, 'ValueAED') };
   }).sort((a, b) => b.v - a.v);
 
+  // Marketing: ad spend from the Campaigns sheet, results from leads tagged with a campaign
+  const monthKeys = new Set(months.map(monthKey));
+  const camp = (d.Campaigns || []).filter((c) => c.Month && monthKeys.has(monthKey(c.Month)));
+  const platformOf = (name) => {
+    const n = String(name || '');
+    if (/meta|facebook|instagram/i.test(n)) return 'Meta';
+    if (/google|youtube/i.test(n)) return 'Google';
+    return 'Other';
+  };
+  const campPlatform = {};
+  camp.forEach((c) => { campPlatform[c.Campaign] = platformOf(c.Platform); });
+  const leadPlatform = (l) => campPlatform[l.Campaign] || (/meta|facebook|instagram|google/i.test(l.Source) ? platformOf(l.Source) : null);
+  const adLeads = recent.filter((l) => leadPlatform(l));
+  const adWon = adLeads.filter((l) => l.Status === 'Won');
+  const spend = sum(camp, 'SpendAED');
+  const impressions = sum(camp, 'Impressions');
+  const clicks = sum(camp, 'Clicks');
+  const platforms = ['Meta', 'Google', 'Other'].filter((pl) => camp.some((c) => platformOf(c.Platform) === pl) || adLeads.some((l) => leadPlatform(l) === pl));
+  const ratio = (a, b) => (b ? a / b : NaN);
+  const fmtX = (n) => (isFinite(n) ? n.toFixed(1) + '×' : '–');
+  const campRows = Object.values(camp.reduce((m, c) => {
+    const r = m[c.Campaign] || (m[c.Campaign] = { name: c.Campaign, platform: platformOf(c.Platform), spend: 0, imp: 0, clicks: 0 });
+    r.spend += c.SpendAED; r.imp += c.Impressions; r.clicks += c.Clicks;
+    return m;
+  }, {})).map((r) => {
+    const ls = recent.filter((l) => l.Campaign === r.name);
+    const w = ls.filter((l) => l.Status === 'Won');
+    return { ...r, leads: ls.length, won: w.length, value: sum(w, 'ValueAED') };
+  }).sort((a, b) => ratio(b.value, b.spend) - ratio(a.value, a.spend));
+
   $('#page').innerHTML = `
-    <div class="page-head"><div><h2>Sales</h2><p>Leads and conversion over the last 6 months.</p></div></div>
+    <div class="page-head"><div><h2>Sales &amp; Marketing</h2><p>Leads, conversion and Meta / Google ad campaigns over the last 6 months.</p></div></div>
     <div class="kpis">
       ${kpi('New leads (30 days)', fmtInt(leads30.length))}
       ${kpi('Conversion rate', fmtPct(won.length / (won.length + lost.length)), 'Won ÷ (won + lost)')}
       ${kpi('Open pipeline', fmtAEDShort(sum(openL, 'ValueAED')), `${openL.length} open leads`)}
       ${kpi('Won value (6 months)', fmtAEDShort(sum(won, 'ValueAED')), `${won.length} deals`)}
     </div>
+    <div class="kpis">
+      ${kpi('Ad spend (6 months)', fmtAEDShort(spend), platforms.filter((pl) => pl !== 'Other').map((pl) => `${pl} ${fmtAEDShort(sum(camp.filter((c) => platformOf(c.Platform) === pl), 'SpendAED'))}`).join(' · '))}
+      ${kpi('Leads from ads', fmtInt(adLeads.length), recent.length ? `${fmtPct(adLeads.length / recent.length)} of all leads` : '')}
+      ${kpi('Cost per lead', isFinite(ratio(spend, adLeads.length)) ? fmtAED(ratio(spend, adLeads.length)) : '–', 'Ad spend ÷ leads from ads')}
+      ${kpi('Cost per client won', isFinite(ratio(spend, adWon.length)) ? fmtAED(ratio(spend, adWon.length)) : '–', `${adWon.length} clients won from ads`)}
+      ${kpi('Return on ad spend', fmtX(ratio(sum(adWon, 'ValueAED'), spend)), 'Won value ÷ ad spend')}
+      ${kpi('Click-through rate', isFinite(ratio(clicks, impressions)) ? (ratio(clicks, impressions) * 100).toFixed(1) + '%' : '–', `${fmtInt(clicks)} clicks`)}
+    </div>
     <div class="grid">
+      ${chartCard('span-6', 'mk-spend', 'Ad spend by platform', 'Monthly')}
+      ${chartCard('span-6', 'mk-leads', 'Leads from ads by platform', 'Monthly, from the Leads sheet')}
+      ${card('span-12#mk-campaigns', 'Campaign performance', 'Last 6 months, best return first', table([
+        { label: 'Campaign', value: (r) => r.name },
+        { label: 'Platform', value: (r) => r.platform },
+        { label: 'Spend', num: true, value: (r) => fmtAED(r.spend) },
+        { label: 'Clicks', num: true, value: (r) => fmtInt(r.clicks) },
+        { label: 'CTR', num: true, value: (r) => (r.imp ? (r.clicks / r.imp * 100).toFixed(1) + '%' : '–') },
+        { label: 'Leads', num: true, value: (r) => r.leads },
+        { label: 'Cost per lead', num: true, value: (r) => (r.leads ? fmtAED(r.spend / r.leads) : '–') },
+        { label: 'Won', num: true, value: (r) => r.won },
+        { label: 'Won value', num: true, value: (r) => fmtAED(r.value) },
+        { label: 'Return', num: true, html: (r) => { const x = ratio(r.value, r.spend); return isFinite(x) ? (x >= 1 ? pill('good', fmtX(x)) : pill('critical', fmtX(x))) : '–'; } },
+      ], campRows, 'No campaign data. Fill the Campaigns sheet from Meta Ads Manager and Google Ads.'))}
       ${chartCard('span-6', 'sl-stage', 'Leads by stage', 'Last 6 months')}
       ${chartCard('span-6', 'sl-source', 'Leads by source', 'Last 6 months')}
       ${chartCard('span-12', 'sl-month', 'Leads and wins per month', 'Count of leads created each month, and how many of them were won')}
@@ -262,6 +314,14 @@ PAGES.sales = () => {
       ], ownerRows))}
     </div>`;
 
+  const t = themeColors();
+  const platColor = { Meta: t.series[0], Google: t.series[1], Other: t.series[2] };
+  chart('mk-spend', { money: true, stacked: true, labels: months.map(fmtMonth), series: platforms.map((pl) => ({
+    label: pl, color: platColor[pl], data: months.map((m) => sum(camp.filter((c) => platformOf(c.Platform) === pl && monthKey(c.Month) === monthKey(m)), 'SpendAED')),
+  })) });
+  chart('mk-leads', { type: 'line', labels: months.map(fmtMonth), series: platforms.map((pl) => ({
+    label: pl, color: platColor[pl], data: months.map((m) => adLeads.filter((l) => leadPlatform(l) === pl && monthKey(l.Date) === monthKey(m)).length),
+  })) });
   chart('sl-stage', { labels: LEAD_STAGES, series: [{ label: 'Leads', data: LEAD_STAGES.map((s) => recent.filter((l) => l.Status === s).length) }] });
   chart('sl-source', { horizontal: true, labels: bySource.map((x) => x[0]), series: [{ label: 'Leads', data: bySource.map((x) => x[1]) }] });
   chart('sl-month', { type: 'line', labels: months.map(fmtMonth), series: [
@@ -506,7 +566,7 @@ function setData(data, source, warnings = []) {
 }
 
 // ---------- sidebar ----------
-const PAGE_TITLES = { overview: 'Overview', sales: 'Sales', operations: 'Operations', compliance: 'Compliance', finance: 'Finance', team: 'Team' };
+const PAGE_TITLES = { overview: 'Overview', sales: 'Sales & Marketing', operations: 'Operations', compliance: 'Compliance', finance: 'Finance', team: 'Team' };
 const slug = (s) => s.toLowerCase().replace(/&/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 function buildSidebar() {

@@ -13,7 +13,7 @@ create table departments (
 );
 
 insert into departments (name) values
-  ('Management'), ('Sales'), ('Company Formation'), ('PRO & Visa'), ('Banking'),
+  ('Management'), ('Sales & Marketing'), ('Company Formation'), ('PRO & Visa'), ('Banking'),
   ('Accounting & Tax'), ('Loans & Mortgage'), ('Advisory'), ('HR & Admin');
 
 create table services (
@@ -60,14 +60,36 @@ create table staff_leave (
 );
 
 -- ---------------------------------------------------------------------------
--- Sales
+-- Sales & Marketing
 -- ---------------------------------------------------------------------------
+-- Ad campaigns (Meta, Google, ...) and their monthly spend from the ad platforms
+create table campaigns (
+  id          serial primary key,
+  name        text not null unique,
+  platform    text not null check (platform in ('Meta', 'Google', 'LinkedIn', 'TikTok', 'Other')),
+  objective   text,                               -- Lead form, Search, Traffic, ...
+  service_id  smallint references services(id),
+  starts_on   date,
+  ends_on     date,
+  active      boolean not null default true
+);
+
+create table campaign_spend (
+  campaign_id  int not null references campaigns(id) on delete cascade,
+  month        date not null check (extract(day from month) = 1),
+  spend_aed    numeric(12,2) not null default 0,
+  impressions  bigint not null default 0,
+  clicks       bigint not null default 0,
+  primary key (campaign_id, month)
+);
+
 create table leads (
   id           bigserial primary key,
   ref          text unique,                       -- e.g. L0001
   created_on   date not null default current_date,
   source       text not null
-               check (source in ('Website', 'WhatsApp', 'Referral', 'Book-a-Call', 'Cost Calculator', 'Walk-in', 'Other')),
+               check (source in ('Website', 'WhatsApp', 'Referral', 'Book-a-Call', 'Cost Calculator', 'Walk-in', 'Meta Ads', 'Google Ads', 'Other')),
+  campaign_id  int references campaigns(id),
   client_name  text not null,
   phone        text,
   email        text,
@@ -279,6 +301,21 @@ end $$;
 -- ---------------------------------------------------------------------------
 -- Dashboard views: the CEO dashboard reads these
 -- ---------------------------------------------------------------------------
+-- Spend, leads, wins and return per campaign
+create view v_campaign_performance as
+select c.id, c.name, c.platform,
+       coalesce(s.spend, 0) as spend_aed, coalesce(s.impressions, 0) as impressions, coalesce(s.clicks, 0) as clicks,
+       count(l.id) as leads,
+       count(l.id) filter (where l.status = 'Won') as won,
+       coalesce(sum(l.value_aed) filter (where l.status = 'Won'), 0) as won_value_aed,
+       round(coalesce(s.spend, 0) / nullif(count(l.id), 0), 2) as cost_per_lead_aed,
+       round(coalesce(sum(l.value_aed) filter (where l.status = 'Won'), 0) / nullif(s.spend, 0), 2) as return_on_spend
+from campaigns c
+left join (select campaign_id, sum(spend_aed) as spend, sum(impressions) as impressions, sum(clicks) as clicks
+           from campaign_spend group by campaign_id) s on s.campaign_id = c.id
+left join leads l on l.campaign_id = c.id
+group by c.id, c.name, c.platform, s.spend, s.impressions, s.clicks;
+
 create view v_cases as
 select c.id, c.ref, c.client_id, cl.ref as client_ref, coalesce(cl.company, cl.name) as client,
        d.name as department, s.name as service, c.stage, st.full_name as assignee,

@@ -2,7 +2,9 @@
 // One workbook, one sheet per department. Sheet and column names must match SCHEMA.
 
 const SCHEMA = {
-  Leads:        ['LeadID', 'Date', 'Source', 'ClientName', 'Service', 'ValueAED', 'Status', 'Owner'],
+  Leads:        ['LeadID', 'Date', 'Source', 'Campaign', 'ClientName', 'Service', 'ValueAED', 'Status', 'Owner'],
+  // Ad spend per campaign per month, from Meta Ads Manager / Google Ads exports
+  Campaigns:    ['Month', 'Campaign', 'Platform', 'SpendAED', 'Impressions', 'Clicks'],
   Clients:      ['ClientID', 'Name', 'Company', 'Jurisdiction', 'LicenceNo', 'TRN', 'StartDate'],
   Cases:        ['CaseID', 'ClientID', 'Department', 'Service', 'Stage', 'Assignee', 'OpenedOn', 'DueDate', 'ClosedOn', 'FeeAED', 'Status'],
   Expiries:     ['ClientID', 'Type', 'Number', 'ExpiryDate'],
@@ -17,6 +19,7 @@ const SCHEMA = {
 
 const DATE_FIELDS = new Set(['Date', 'StartDate', 'OpenedOn', 'DueDate', 'ClosedOn', 'ExpiryDate', 'AppliedOn', 'InvoiceDate', 'AsOf', 'Month']);
 const isMoney = (f) => f.endsWith('AED');
+const COUNT_FIELDS = new Set(['Impressions', 'Clicks']);
 
 const DEPARTMENTS = ['Company Formation', 'PRO & Visa', 'Banking', 'Accounting & Tax', 'Loans & Mortgage', 'Advisory'];
 const LEAD_STAGES = ['New', 'Contacted', 'Proposal', 'Won', 'Lost'];
@@ -56,7 +59,7 @@ function normalizeRows(sheet, rows) {
     for (const c of cols) {
       const v = keyed[c.toLowerCase()];
       if (DATE_FIELDS.has(c)) out[c] = toDate(v);
-      else if (isMoney(c)) out[c] = toNumber(v);
+      else if (isMoney(c) || COUNT_FIELDS.has(c)) out[c] = toNumber(v);
       else out[c] = v === undefined || v === null ? '' : String(v).trim();
     }
     return out;
@@ -125,7 +128,7 @@ function makeSampleData() {
 
   const team = [
     ['Sana R.', 'Management', 'General Manager'],
-    ['Imran H.', 'Sales', 'Sales Lead'], ['Priya N.', 'Sales', 'Business Consultant'], ['Omar F.', 'Sales', 'Business Consultant'],
+    ['Imran H.', 'Sales & Marketing', 'Sales Lead'], ['Priya N.', 'Sales & Marketing', 'Business Consultant'], ['Omar F.', 'Sales & Marketing', 'Digital Marketing Executive'],
     ['Faisal A.', 'Company Formation', 'Formation Lead'], ['Neha S.', 'Company Formation', 'Formation Executive'], ['Yusuf K.', 'Company Formation', 'Formation Executive'],
     ['Rashid M.', 'PRO & Visa', 'PRO Lead'], ['Arjun P.', 'PRO & Visa', 'PRO Officer'], ['Hassan T.', 'PRO & Visa', 'PRO Officer'],
     ['Leena J.', 'Banking', 'Banking Relationship Lead'], ['Karim B.', 'Banking', 'Banking Executive'],
@@ -173,7 +176,25 @@ function makeSampleData() {
     });
   }
 
-  const sources = ['Website', 'WhatsApp', 'WhatsApp', 'Referral', 'Book-a-Call', 'Cost Calculator', 'Walk-in'];
+  const sources = ['Website', 'WhatsApp', 'WhatsApp', 'Referral', 'Book-a-Call', 'Cost Calculator', 'Walk-in', 'Meta Ads', 'Meta Ads', 'Google Ads', 'Google Ads'];
+  const campaigns = [
+    { name: 'Freezone Setup – Lead Form', platform: 'Meta', budget: 2600 },
+    { name: 'Golden Visa – Reels', platform: 'Meta', budget: 1700 },
+    { name: 'Company Formation – Search', platform: 'Google', budget: 3400 },
+    { name: 'Corporate Tax – Search', platform: 'Google', budget: 1900 },
+    { name: 'Bank Account Opening – Search', platform: 'Google', budget: 1300 },
+  ];
+  const Campaigns = [];
+  for (let m = 5; m >= 0; m--) {
+    const month = new Date(today.getFullYear(), today.getMonth() - m, 1);
+    for (const c of campaigns) {
+      const spend = Math.round(c.budget * (0.75 + rnd() * 0.5));
+      const cpm = c.platform === 'Meta' ? 9 + rnd() * 6 : 28 + rnd() * 14;   // AED per 1,000 impressions
+      const impressions = Math.round(spend / cpm * 1000);
+      const ctr = c.platform === 'Meta' ? 0.009 + rnd() * 0.008 : 0.035 + rnd() * 0.03;
+      Campaigns.push({ Month: month, Campaign: c.name, Platform: c.platform, SpendAED: spend, Impressions: impressions, Clicks: Math.round(impressions * ctr) });
+    }
+  }
   const Leads = [];
   for (let i = 1; i <= 170; i++) {
     const age = int(0, 180);
@@ -184,10 +205,13 @@ function makeSampleData() {
     if (age > 45) status = r < 0.42 ? 'Won' : r < 0.82 ? 'Lost' : pick(['Proposal', 'Contacted']);
     else if (age > 14) status = r < 0.25 ? 'Won' : r < 0.45 ? 'Lost' : pick(['Proposal', 'Contacted', 'Contacted']);
     else status = pick(['New', 'New', 'Contacted', 'Proposal']);
+    const Source = pick(sources);
+    const Campaign = Source === 'Meta Ads' ? pick(campaigns.filter((c) => c.platform === 'Meta')).name
+      : Source === 'Google Ads' ? pick(campaigns.filter((c) => c.platform === 'Google')).name : '';
     Leads.push({
-      LeadID: `L${pad(i, 4)}`, Date: addDays(today, -age), Source: pick(sources),
+      LeadID: `L${pad(i, 4)}`, Date: addDays(today, -age), Source, Campaign,
       ClientName: `${pick(firstNames)} ${pick(lastNames)}`, Service: svc,
-      ValueAED: Math.round(int(lo, hi) / 100) * 100, Status: status, Owner: pick(staffIn('Sales')),
+      ValueAED: Math.round(int(lo, hi) / 100) * 100, Status: status, Owner: pick(staffIn('Sales & Marketing')),
     });
   }
 
@@ -265,5 +289,5 @@ function makeSampleData() {
     { Bank: 'Mashreq', Account: 'Client Funds – AED', BalanceAED: 254900, AsOf: today },
   ];
 
-  return { Leads, Clients, Cases, Expiries, Banking, TaxCalendar, Team, Finance, Receivables, BankBalances };
+  return { Leads, Campaigns, Clients, Cases, Expiries, Banking, TaxCalendar, Team, Finance, Receivables, BankBalances };
 }

@@ -8,7 +8,7 @@ AB Capital Services FZC (SRTIP Sharjah licence 1543, FTA-approved tax agency) is
 
 | Department | Services |
 |---|---|
-| Sales / Business Development | Leads from website, WhatsApp, Book-a-Call, Tally calculator, referrals |
+| Sales & Marketing | Leads from website, WhatsApp, Book-a-Call, cost calculator, referrals; Meta and Google ad campaigns |
 | Company Formation | Mainland, Freezone, Offshore, Dubai Customs registration |
 | PRO & Visa | Government paperwork, employment/investor visas, Golden Visa, Emirates ID |
 | Banking Solutions | Corporate bank account opening (~16 partner banks) |
@@ -84,7 +84,7 @@ AuditLog: who, what, when, before/after
 | # | Module | Purpose | Key screens |
 |---|---|---|---|
 | M0 | **Core Platform** | Login, MFA, users, roles, departments, audit log, notifications, settings | Login, user admin, profile |
-| M1 | **CRM & Leads** | Capture leads from all channels, pipeline, quotes, conversion | Pipeline board, lead detail, quote builder |
+| M1 | **CRM, Leads & Marketing** | Capture leads from all channels, pipeline, quotes, conversion; Meta/Google campaign spend, cost per lead, return on ad spend | Pipeline board, lead detail, quote builder, campaign performance |
 | M2 | **Client 360 & KYC** | Single client record, shareholders, companies, KYC/AML risk rating | Client profile with tabs per department |
 | M3 | **Case / Workflow Engine** | Generic stage-based workflow, checklists, SLAs, hand-offs between departments | Kanban per department, case detail |
 | M4 | **Company Formation** | Formation templates per jurisdiction (Mainland/Freezone/Offshore) | Formation tracker |
