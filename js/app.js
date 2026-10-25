@@ -4,6 +4,8 @@ const TODAY = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
 // Hosted data files, read only on private hosting (never on public GitHub Pages)
 const LIVE_SQL = 'data/abcapital.sql';
 const LIVE_FILE = 'data/abcapital.xlsx';
+// The site's default data, tracked in Git and public on GitHub Pages
+const SITE_SQL = 'db/sample-data.sql';
 
 const state = { data: null, source: { kind: 'sample', label: 'Sample data' }, charts: [], opsDept: 'All' };
 
@@ -559,6 +561,7 @@ function setData(data, source, warnings = []) {
   badge.dataset.kind = source.kind;
   const notice = $('#notice');
   const msgs = [...warnings];
+  if (source.kind === 'site') msgs.unshift(`Showing ${SITE_SQL}. Edit that file and push to update this page. It is public: keep real client data out of it.`);
   if (source.kind === 'sample') msgs.unshift('You are looking at fictional sample data. Click “Load data” in the sidebar and pick your .sql file (or Excel workbook). “SQL sample” downloads the file format.');
   notice.hidden = !msgs.length;
   notice.textContent = msgs.join(' ');
@@ -715,8 +718,22 @@ async function init() {
       clearCache();
     }
   }
-  // 3. Sample data.
-  setData(makeSampleData(), { kind: 'sample', label: 'Sample data' });
+  // 3. The site's own data file. Edit it and push to update the live site.
+  let siteError = '';
+  try {
+    const res = await fetch(SITE_SQL, { cache: 'no-store' });
+    if (res.ok) {
+      showNotice('Loading data…');
+      const { data, warnings } = await parseSql(await res.text());
+      setData(data, { kind: 'site', label: SITE_SQL }, warnings);
+      return;
+    }
+  } catch (err) {
+    console.error(err);
+    siteError = `${SITE_SQL} could not be read: ${err.message}. Showing built-in sample data instead.`;
+  }
+  // 4. Built-in sample data, if that file is missing or has an error.
+  setData(makeSampleData(), { kind: 'sample', label: 'Sample data' }, siteError ? [siteError] : []);
 }
 
 $('#file-input').addEventListener('change', async (e) => {

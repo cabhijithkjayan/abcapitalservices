@@ -1,6 +1,6 @@
 // Writes db/sample-data.sql: the fictional sample data as INSERT statements for db/schema.sql.
 // It is the format reference for the real data file. Run from the repo root:
-//   node tools/make-sample-sql.js
+//   node tools/make-sample-sql.js --force   (overwrites db/sample-data.sql, including any edits)
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -69,5 +69,11 @@ out += rows('finance_monthly', ['month', 'revenue_aed', 'expenses_aed', 'collect
 out += rows('receivables', ['client_name', 'invoice_no', 'invoice_date', 'due_on', 'amount_aed'], d.Receivables.map((r) => [r.ClientName, r.InvoiceNo, r.InvoiceDate, r.DueDate, r.AmountAED]));
 out += rows('bank_balances', ['bank', 'account', 'balance_aed', 'as_of'], d.BankBalances.map((b) => [b.Bank, b.Account, b.BalanceAED, b.AsOf]));
 
-fs.writeFileSync(path.join(root, 'db/sample-data.sql'), out);
+const target = path.join(root, 'db/sample-data.sql');
+// db/sample-data.sql is the live site's data and may hold hand edits: overwrite only on purpose.
+if (fs.existsSync(target) && !process.argv.includes('--force')) {
+  console.error('db/sample-data.sql exists and may contain your edits. Re-run with --force to overwrite it.');
+  process.exit(1);
+}
+fs.writeFileSync(target, out);
 console.log(`db/sample-data.sql written (${out.length} bytes)`);

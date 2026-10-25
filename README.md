@@ -20,6 +20,16 @@ Every chart has a **Table** button that shows the same numbers as a table. Light
 
 ### Main source: one SQL file
 
+**The live site shows `db/sample-data.sql`.** To change what the site shows, edit that file, then commit and push:
+
+```bash
+git add db/sample-data.sql
+git commit -m "Update dashboard data"
+git push
+```
+
+GitHub Pages rebuilds in about a minute. That file is public, so keep real client data out of it.
+
 All figures come from **one PostgreSQL data file** that fills the tables in `db/schema.sql`.
 
 - **Format:** `db/sample-data.sql` (fictional). Click **SQL sample** in the sidebar to download it. Keep the same tables and columns; replace the rows.
@@ -27,7 +37,7 @@ All figures come from **one PostgreSQL data file** that fills the tables in `db/
 - **A full dump also works:** a `pg_dump` file that includes `CREATE TABLE` statements is used as-is, as long as its tables match `db/schema.sql`.
 - **Errors** (a typo, a missing reference) appear at the top of the page with the Postgres message; the previous data stays on screen.
 - **Private hosting:** put the file on the server as `data/abcapital.sql` and every logged-in user sees it automatically (see `docs/HOSTING.md`, Option B). Never on public GitHub Pages.
-- To regenerate the sample file after changing the sample data: `node tools/make-sample-sql.js`.
+- To regenerate the sample file from scratch (overwrites your edits): `node tools/make-sample-sql.js --force`.
 
 > **Never commit a real `.sql` file.** `.gitignore` blocks every `.sql` file except `db/schema.sql` and `db/sample-data.sql`.
 
@@ -74,7 +84,8 @@ Paste the exported rows into the matching sheet. Menu names vary slightly betwee
 
 1. `data/abcapital.sql`, then `data/abcapital.xlsx`, on the web server. Private hosting only; skipped on GitHub Pages.
 2. The last SQL file or workbook loaded in this browser with **Load data**. It is kept in this browser only and never uploaded.
-3. Fictional sample data, so the dashboard is never blank.
+3. `db/sample-data.sql`, the site's own data file.
+4. Built-in fictional sample data, if that file is missing or has an error.
 
 ## Run it on your computer
 

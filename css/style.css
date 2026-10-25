@@ -216,6 +216,7 @@ a.side-btn { text-decoration: none; }
 .badge[data-kind="live"]::before { background: var(--good); }
 .badge[data-kind="upload"]::before { background: var(--series-1); }
 .badge[data-kind="sample"]::before { background: var(--warning); }
+.badge[data-kind="site"]::before { background: var(--series-3); }
 
 .notice {
   display: flex; gap: 10px; align-items: baseline;
