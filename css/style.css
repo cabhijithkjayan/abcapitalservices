@@ -148,9 +148,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .tabs a[aria-current="page"] { color: var(--text-primary); border-bottom-color: var(--accent); }
 
 .notice {
+  display: flex; gap: 10px; align-items: baseline;
   margin: 16px 24px 0; padding: 10px 14px;
-  border: 1px solid var(--border); border-left: 4px solid var(--warning);
+  border: 1px solid var(--border);
   border-radius: 8px; background: var(--surface-1); color: var(--text-secondary);
+}
+.notice::before {
+  content: ""; flex: none; width: 10px; height: 9px;
+  background: var(--warning); clip-path: polygon(50% 0, 100% 100%, 0 100%);
 }
 
 /* Page layout */
